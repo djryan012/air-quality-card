@@ -336,3 +336,73 @@ export const AIR_QUALITY_SENSORS: SensorsRegistry = {
     category: 'comfort',
   },
 };
+
+// Temperature presets for Celsius and Fahrenheit. Conversion of the default
+// Celsius preset (21°C, step 1) and conversion from the thermal comfort comfort
+// standard ISO 7730 and common household conventions:
+//
+// Celsius (°C):
+//   21°C (69.8°F) - ISO 7730 standard comfort temperature for sedentary activity.
+//   step: 1°C - granularity allows ±1°C deviation before triggering state changes.
+//
+// Fahrenheit (°F):
+//   72°F (22.2°C) - US household comfort standard, close to the Celsius reference.
+//   step: 2°F - roughly equivalent to the 1°C step, accounting for conversion factor
+//               (1°C ≈ 1.8°F, so step of 1.8 rounds to 2°F for practical use).
+export const TEMPERATURE_PRESETS = {
+  celsius: {
+    name: 'Temperature',
+    unit: '°C',
+    setpoint: 21,
+    step: 1,
+    mode: 'heatflow',
+    category: 'comfort',
+  },
+  fahrenheit: {
+    name: 'Temperature',
+    unit: '°F',
+    setpoint: 72,
+    step: 2,
+    mode: 'heatflow',
+    category: 'comfort',
+  },
+};
+
+/**
+ * Resolve the appropriate temperature preset based on Home Assistant's unit
+ * system and user configuration.
+ *
+ * Priority (in order):
+ * 1. User override via `unit` config - explicit user choice always wins
+ * 2. Home Assistant's `config.unit_system` - respect HA's global setting
+ * 3. Fallback to Celsius - safe default when HA system is unavailable
+ *
+ * @param userUnit The unit from sensor configuration (e.g., '°F', 'F', '°C', 'C'), or undefined
+ * @param haUnitSystem Home Assistant's unit system object (hass.config?.unit_system)
+ * @returns The temperature preset (Celsius or Fahrenheit)
+ */
+export function getTemperaturePreset(
+  userUnit: string | undefined,
+  haUnitSystem: any,
+): (typeof TEMPERATURE_PRESETS)['celsius' | 'fahrenheit'] {
+  // Priority 1: User explicitly set a unit in YAML config
+  if (userUnit) {
+    if (userUnit === '°F' || userUnit === 'F') {
+      return TEMPERATURE_PRESETS.fahrenheit;
+    }
+    if (userUnit === '°C' || userUnit === 'C') {
+      return TEMPERATURE_PRESETS.celsius;
+    }
+  }
+
+  // Priority 2: Use Home Assistant's unit system
+  if (haUnitSystem) {
+    // HA exposes temperature_unit as either 'C' or 'F'
+    if (haUnitSystem.temperature_unit === 'F') {
+      return TEMPERATURE_PRESETS.fahrenheit;
+    }
+  }
+
+  // Priority 3: Default to Celsius
+  return TEMPERATURE_PRESETS.celsius;
+}
